@@ -1,0 +1,12 @@
+{
+	"name": "json-rpc",
+	"description": "JSON RPC implementation",
+	"url": "https://github.com/vshaxe/json-rpc",
+	"license": "MIT",
+	"version": "0.0.1",
+	"releasenote": "Initial release",
+	"classPath": "src",
+	"contributors": ["nadako", "Gama11", "Simn"],
+	"dependencies": {},
+	"tags": ["json", "rpc"]
+}
