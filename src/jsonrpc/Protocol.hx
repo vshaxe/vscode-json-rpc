@@ -13,7 +13,7 @@ typedef GenericNotificationHandler = NotificationHandler<Array<Any>>;
 	A simple JSON-RPC protocol base class.
 **/
 class Protocol {
-	static inline var PROTOCOL_VERSION = "2.0";
+	public static inline var PROTOCOL_VERSION = "2.0";
 	static inline var CANCEL_METHOD = new NotificationMethod<CancelParams>("$/cancelRequest");
 
 	var writeMessage:(message:Message) -> Void;
