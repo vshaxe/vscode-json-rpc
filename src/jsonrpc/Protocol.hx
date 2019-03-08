@@ -14,7 +14,7 @@ typedef GenericNotificationHandler = NotificationHandler<Array<Any>>;
 **/
 class Protocol {
 	public static inline var PROTOCOL_VERSION = "2.0";
-	static inline var CANCEL_METHOD = new NotificationMethod<CancelParams>("$/cancelRequest");
+	public static inline var CANCEL_METHOD = new NotificationMethod<CancelParams>("$/cancelRequest");
 
 	var writeMessage:(message:Message) -> Void;
 	var requestTokens:Map<String, CancellationTokenSource>;
