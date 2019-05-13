@@ -16,7 +16,7 @@ class MessageWriter {
 		this.encoding = encoding;
 	}
 
-	public function write(msg:Message):Void {
+	public function write(msg:Message, _):Void {
 		var json = haxe.Json.stringify(msg);
 		var contentLength = Buffer.byteLength(json, encoding);
 		writable.write(CONTENT_LENGTH, "ascii");

@@ -16,7 +16,7 @@ class Protocol {
 	public static inline var PROTOCOL_VERSION = "2.0";
 	public static inline var CANCEL_METHOD = new NotificationMethod<CancelParams>("$/cancelRequest");
 
-	var writeMessage:(message:Message) -> Void;
+	var writeMessage:(message:Message, token:Null<CancellationToken>) -> Void;
 	var requestTokens:Map<String, CancellationTokenSource>;
 	var nextRequestId:Int;
 	var requestHandlers:Map<String, RequestHandler<Dynamic, Dynamic, Dynamic>>;
@@ -62,7 +62,7 @@ class Protocol {
 				id: request.id,
 				result: result
 			};
-			writeMessage(response);
+			writeMessage(response, null);
 		}
 
 		function reject(error:ResponseErrorData) {
@@ -73,7 +73,7 @@ class Protocol {
 				id: request.id,
 				error: error
 			};
-			writeMessage(response);
+			writeMessage(response, null);
 		}
 
 		var handler = requestHandlers[request.method];
@@ -140,7 +140,7 @@ class Protocol {
 		};
 		if (params != null)
 			message.params = params;
-		writeMessage(message);
+		writeMessage(message, null);
 	}
 
 	public function sendRequest<P, R, E>(method:RequestMethod<P, R, E>, params:P, token:Null<CancellationToken>, resolve:(result:R) -> Void,
@@ -156,7 +156,7 @@ class Protocol {
 		responseCallbacks[id] = new ResponseCallbackEntry(method, resolve, reject);
 		if (token != null)
 			token.setCallback(() -> sendNotification(CANCEL_METHOD, {id: id}));
-		writeMessage(request);
+		writeMessage(request, token);
 	}
 
 	public dynamic function logError(message:String):Void {}
