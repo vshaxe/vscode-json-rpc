@@ -1,5 +1,5 @@
 {
-	"name": "json-rpc",
+	"name": "vscode-json-rpc",
 	"description": "JSON RPC implementation",
 	"url": "https://github.com/vshaxe/json-rpc",
 	"license": "MIT",
