@@ -16,6 +16,8 @@ class Protocol {
 	public static inline var PROTOCOL_VERSION = "2.0";
 	public static inline var CANCEL_METHOD = new NotificationMethod<CancelParams>("$/cancelRequest");
 
+	public var didRespondToRequest:Null<(request:RequestMessage, response:ResponseMessage) -> Void>;
+
 	var writeMessage:(message:Message, token:Null<CancellationToken>) -> Void;
 	var requestTokens:Map<String, CancellationTokenSource>;
 	var nextRequestId:Int;
@@ -63,6 +65,10 @@ class Protocol {
 				result: result
 			};
 			writeMessage(response, null);
+
+			if (didRespondToRequest != null) {
+				didRespondToRequest(request, response);
+			}
 		}
 
 		function reject(error:ResponseErrorData) {
