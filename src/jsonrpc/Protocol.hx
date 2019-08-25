@@ -3,18 +3,56 @@ package jsonrpc;
 import jsonrpc.Types;
 import jsonrpc.CancellationToken;
 import jsonrpc.ErrorUtils.errorToString;
+import haxe.extern.EitherType;
+
+typedef CancelParams = {
+	/**
+		The request id to cancel.
+	**/
+	var id:EitherType<Int, String>;
+}
+
+class CancelNotification {
+	public static inline var type = new NotificationType<CancelParams>("$/cancelRequest");
+}
+
+typedef ProgressToken = EitherType<Int, String>;
+
+typedef ProgressParams<T> = {
+	/**
+		The progress token provided by the client.
+	**/
+	var token:ProgressToken;
+
+	/**
+		The progress data.
+	**/
+	var value:T;
+}
+
+class ProgressNotification {
+	public static inline var type = new NotificationType<ProgressParams<Any>>("$/progress");
+}
+
+class ProgressType<P> {
+	public function new() {}
+}
 
 typedef RequestHandler<P, R, E> = (params:P, token:CancellationToken, resolve:(response:R) -> Void, reject:(error:ResponseError<E>) -> Void) -> Void;
-typedef GenericRequestHandler<R, E> = RequestHandler<Array<Any>, R, E>;
 typedef NotificationHandler<P> = (params:P) -> Void;
-typedef GenericNotificationHandler = NotificationHandler<Array<Any>>;
+
+typedef Disposable = {
+	/**
+		Dispose this object.
+	**/
+	function dispose():Void;
+}
 
 /**
 	A simple JSON-RPC protocol base class.
 **/
 class Protocol {
 	public static inline var PROTOCOL_VERSION = "2.0";
-	public static inline var CANCEL_METHOD = new NotificationMethod<CancelParams>("$/cancelRequest");
 
 	public var didRespondToRequest:Null<(request:RequestMessage, response:ResponseMessage) -> Void>;
 
@@ -23,15 +61,28 @@ class Protocol {
 	var nextRequestId:Int;
 	var requestHandlers:Map<String, RequestHandler<Dynamic, Dynamic, Dynamic>>;
 	var notificationHandlers:Map<String, NotificationHandler<Dynamic>>;
+	// note: using an ObjectMap here is not safe on all targets
+	var progressHandlers:Map<{}, NotificationHandler<Dynamic>>;
+
 	var responseCallbacks:Map<Int, ResponseCallbackEntry>;
 
 	public function new(writeMessage) {
 		this.writeMessage = writeMessage;
-		requestHandlers = new Map();
-		responseCallbacks = new Map();
-		notificationHandlers = new Map();
 		requestTokens = new Map();
 		nextRequestId = 0;
+		requestHandlers = new Map();
+		notificationHandlers = new Map();
+		progressHandlers = new Map();
+		responseCallbacks = new Map();
+
+		onNotification(ProgressNotification.type, function(params) {
+			var handler = progressHandlers.get(params.token);
+			if (handler != null) {
+				handler(params.value);
+			} else {
+				// unhandledProgressEmitter.fire(params);
+			}
+		});
 	}
 
 	public function handleMessage(message:Message):Void {
@@ -45,12 +96,24 @@ class Protocol {
 		}
 	}
 
-	public inline function onRequest<P, R, E>(method:RequestMethod<P, R, E>, handler:RequestHandler<P, R, E>):Void {
+	public inline function onRequest<P, R, E>(method:RequestType<P, R, E>, handler:RequestHandler<P, R, E>):Void {
 		requestHandlers[method] = handler;
 	}
 
-	public inline function onNotification<P>(method:NotificationMethod<P>, handler:NotificationHandler<P>):Void {
+	public inline function onNotification<P>(method:NotificationType<P>, handler:NotificationHandler<P>):Void {
 		notificationHandlers[method] = handler;
+	}
+
+	public function onProgress<P>(type:ProgressType<P>, token:ProgressToken, handler:NotificationHandler<P>):Disposable {
+		if (progressHandlers.exists(token)) {
+			throw 'Progress handler for token $token already registered';
+		}
+		progressHandlers[token] = handler;
+		return {
+			dispose: function() {
+				progressHandlers.remove(token);
+			}
+		}
 	}
 
 	function handleRequest(request:RequestMessage) {
@@ -101,7 +164,7 @@ class Protocol {
 	}
 
 	function handleNotification(notification:NotificationMessage) {
-		if (notification.method == CANCEL_METHOD) {
+		if (notification.method == CancelNotification.type) {
 			var tokenKey = Std.string(notification.params.id);
 			var tokenSource = requestTokens[tokenKey];
 			if (tokenSource != null) {
@@ -139,7 +202,7 @@ class Protocol {
 		}
 	}
 
-	public inline function sendNotification<P>(name:NotificationMethod<P>, ?params:P):Void {
+	public inline function sendNotification<P>(name:NotificationType<P>, ?params:P):Void {
 		var message:NotificationMessage = {
 			jsonrpc: PROTOCOL_VERSION,
 			method: name
@@ -149,7 +212,11 @@ class Protocol {
 		writeMessage(message, null);
 	}
 
-	public function sendRequest<P, R, E>(method:RequestMethod<P, R, E>, params:P, token:Null<CancellationToken>, resolve:(result:R) -> Void,
+	public inline function sendProgress<P>(type:ProgressType<P>, token:ProgressToken, value:P):Void {
+		sendNotification(ProgressNotification.type, {token: token, value: value});
+	}
+
+	public function sendRequest<P, R, E>(method:RequestType<P, R, E>, params:P, token:Null<CancellationToken>, resolve:(result:R) -> Void,
 			reject:(error:E) -> Void):Void {
 		var id = nextRequestId++;
 		var request:RequestMessage = {
@@ -161,21 +228,11 @@ class Protocol {
 			request.params = params;
 		responseCallbacks[id] = new ResponseCallbackEntry(method, resolve, reject);
 		if (token != null)
-			token.setCallback(() -> sendNotification(CANCEL_METHOD, {id: id}));
+			token.setCallback(() -> sendNotification(CancelNotification.type, {id: id}));
 		writeMessage(request, token);
 	}
 
 	public dynamic function logError(message:String):Void {}
-}
-
-/**
-	Parameters for request cancellation notification.
-**/
-private typedef CancelParams = {
-	/**
-		The request id to cancel.
-	**/
-	var id:RequestId;
 }
 
 private class ResponseCallbackEntry {
