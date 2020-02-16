@@ -1,9 +1,9 @@
 package jsonrpc;
 
-import jsonrpc.Types;
+import haxe.extern.EitherType;
 import jsonrpc.CancellationToken;
 import jsonrpc.ErrorUtils.errorToString;
-import haxe.extern.EitherType;
+import jsonrpc.Types;
 
 typedef CancelParams = {
 	/**
@@ -55,6 +55,7 @@ class Protocol {
 	public static inline var PROTOCOL_VERSION = "2.0";
 
 	public var didRespondToRequest:Null<(request:RequestMessage, response:ResponseMessage) -> Void>;
+	public var didSendNotification:Null<(notification:NotificationMessage) -> Void>;
 
 	var writeMessage:(message:Message, token:Null<CancellationToken>) -> Void;
 	var requestTokens:Map<String, CancellationTokenSource>;
@@ -210,6 +211,10 @@ class Protocol {
 		if (params != null)
 			message.params = params;
 		writeMessage(message, null);
+
+		if (didSendNotification != null) {
+			didSendNotification(message);
+		}
 	}
 
 	public inline function sendProgress<P>(type:ProgressType<P>, token:ProgressToken, value:P):Void {
