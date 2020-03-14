@@ -13,7 +13,7 @@ typedef CancelParams = {
 }
 
 class CancelNotification {
-	public static inline var type = new NotificationType<CancelParams>("$/cancelRequest");
+	public static inline final type = new NotificationType<CancelParams>("$/cancelRequest");
 }
 
 typedef ProgressToken = EitherType<Int, String>;
@@ -31,7 +31,7 @@ typedef ProgressParams<T> = {
 }
 
 class ProgressNotification {
-	public static inline var type = new NotificationType<ProgressParams<Any>>("$/progress");
+	public static inline final type = new NotificationType<ProgressParams<Any>>("$/progress");
 }
 
 class ProgressType<P> {
@@ -193,10 +193,15 @@ class Protocol {
 		if (handler != null) {
 			responseCallbacks.remove(response.id);
 			try {
-				if (Reflect.hasField(response, "error"))
-					handler.reject(response.error);
-				else
-					handler.resolve(response.result);
+				if (Reflect.hasField(response, "error")) {
+					if (handler.reject != null) {
+						handler.reject(response.error);
+					}
+				} else {
+					if (handler.resolve != null) {
+						handler.resolve(response.result);
+					}
+				}
 			} catch (e:Dynamic) {
 				logError(errorToString(e, 'Exception while handing response ${handler.method}: '));
 			}
@@ -221,8 +226,8 @@ class Protocol {
 		sendNotification(ProgressNotification.type, {token: token, value: value});
 	}
 
-	public function sendRequest<P, R, E>(method:RequestType<P, R, E>, params:P, token:Null<CancellationToken>, resolve:(result:R) -> Void,
-			reject:(error:E) -> Void):Void {
+	public function sendRequest<P, R, E>(method:RequestType<P, R, E>, params:P, ?token:CancellationToken, ?resolve:(result:R) -> Void,
+			?reject:(error:E) -> Void):Void {
 		var id = nextRequestId++;
 		var request:RequestMessage = {
 			jsonrpc: PROTOCOL_VERSION,
@@ -242,8 +247,8 @@ class Protocol {
 
 private class ResponseCallbackEntry {
 	public var method:String;
-	public var resolve:Dynamic->Void;
-	public var reject:Dynamic->Void;
+	public var resolve:Null<Dynamic->Void>;
+	public var reject:Null<Dynamic->Void>;
 
 	public function new(method, resolve, reject) {
 		this.method = method;
