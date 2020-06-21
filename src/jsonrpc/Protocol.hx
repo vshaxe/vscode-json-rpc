@@ -97,11 +97,11 @@ class Protocol {
 		}
 	}
 
-	public inline function onRequest<P, R, E>(method:RequestType<P, R, E>, handler:RequestHandler<P, R, E>):Void {
+	public function onRequest<P, R, E>(method:RequestType<P, R, E>, handler:RequestHandler<P, R, E>):Void {
 		requestHandlers[method] = handler;
 	}
 
-	public inline function onNotification<P>(method:NotificationType<P>, handler:NotificationHandler<P>):Void {
+	public function onNotification<P>(method:NotificationType<P>, handler:NotificationHandler<P>):Void {
 		notificationHandlers[method] = handler;
 	}
 
